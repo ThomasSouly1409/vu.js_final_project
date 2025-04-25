@@ -11,4 +11,5 @@ async function loadUrls() {
 
 <template>
     <h1>Hello word</h1>
+    <button @click="loadUrls">Click</button>
 </template>
