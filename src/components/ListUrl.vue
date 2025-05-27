@@ -6,7 +6,7 @@ const $api = useApi()
 
 // État réactif
 const urls = ref([])
-const urlStats = ref({}) // Pour stocker les statistiques de chaque URL
+const urlStats = ref({})
 const isLoading = ref(false)
 const isLoadingStats = ref(false)
 const error = ref(null)
@@ -64,7 +64,6 @@ async function loadUrls() {
 
     const response = await $api(`/rest/v3/short-urls?${params}`)
     
-    // Adapter selon la structure de réponse de Shlink
     if (response.shortUrls) {
       urls.value = response.shortUrls.data || response.shortUrls
       totalPages.value = Math.ceil((response.shortUrls.pagination?.totalItems || response.shortUrls.length) / itemsPerPage.value)
@@ -73,7 +72,6 @@ async function loadUrls() {
       totalPages.value = Math.ceil((response.pagination?.totalItems || response.length) / itemsPerPage.value)
     }
     
-    // Charger les statistiques après avoir chargé les URLs
     await loadAllUrlStats()
     
   } catch (err) {
@@ -84,10 +82,28 @@ async function loadUrls() {
   }
 }
 
+// Fonction pour supprimer un lien court
+async function deleteShortLink(shortCode) {
+  if (!shortCode) return
+  if (!confirm(`Voulez-vous vraiment supprimer le lien court "${shortCode}" ?`)) return
+
+  try {
+    await $api(`/rest/v3/short-urls/${shortCode}`, { method: 'DELETE' })
+    // Retirer le lien supprimé de la liste locale
+    urls.value = urls.value.filter(url => (url.shortCode || url.short_code) !== shortCode)
+    // Optionnel : rafraîchir les stats
+    urlStats.value = {}
+    await loadAllUrlStats()
+    alert('Lien supprimé avec succès')
+  } catch (err) {
+    console.error('Erreur lors de la suppression du lien :', err)
+    alert('Erreur lors de la suppression du lien')
+  }
+}
+
 // Obtenir le nombre de vues pour une URL
 function getVisitsCount(url) {
   const shortCode = url.shortCode || url.short_code
-  // Essayer plusieurs sources possibles pour le nombre de visites
   return urlStats.value[shortCode] || 
          url.visitsCount || 
          url.visits_count || 
@@ -115,11 +131,10 @@ function changePage(page) {
 
 // Actualiser avec rechargement des stats
 async function refreshData() {
-  urlStats.value = {} // Reset des stats
+  urlStats.value = {}
   await loadUrls()
 }
 
-// Charger au montage
 onMounted(() => {
   loadUrls()
 })
@@ -139,7 +154,6 @@ onMounted(() => {
         </button>
       </div>
 
-      <!-- Barre de recherche -->
       <div class="mb-6">
         <input
           v-model="searchTerm"
@@ -150,23 +164,19 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Message d'erreur -->
       <div v-if="error" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
         {{ error }}
       </div>
 
-      <!-- État de chargement -->
       <div v-if="isLoading" class="text-center py-8">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         <p class="mt-2 text-gray-600">Chargement...</p>
       </div>
 
-      <!-- Indicateur de chargement des stats -->
       <div v-if="isLoadingStats && !isLoading" class="mb-4 text-center">
         <p class="text-sm text-blue-600">📊 Chargement des statistiques...</p>
       </div>
 
-      <!-- Liste des URLs -->
       <div v-else-if="urls.length > 0" class="space-y-4">
         <div 
           v-for="url in urls" 
@@ -174,7 +184,6 @@ onMounted(() => {
           class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
         >
           <div class="flex flex-col gap-3">
-            <!-- Titre et date -->
             <div class="flex justify-between items-start">
               <div class="flex-1">
                 <h3 v-if="url.title" class="font-semibold text-gray-800 text-lg">{{ url.title }}</h3>
@@ -184,9 +193,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- URLs -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- URL originale -->
               <div>
                 <label class="text-xs font-medium text-gray-600 block mb-1">URL originale :</label>
                 <div class="flex">
@@ -198,7 +205,6 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Lien court -->
               <div>
                 <label class="text-xs font-medium text-gray-600 block mb-1">Lien court :</label>
                 <div class="flex">
@@ -211,7 +217,6 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Statistiques basiques -->
             <div class="flex justify-between items-center pt-2 border-t border-gray-100">
               <div class="flex gap-4 text-sm text-gray-600">
                 <span class="flex items-center gap-1">
@@ -230,18 +235,23 @@ onMounted(() => {
                 >
                   🔗 Ouvrir
                 </a>
+                <button
+                  @click="deleteShortLink(url.shortCode || url.short_code)"
+                  class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                  title="Supprimer ce lien"
+                >
+                  🗑️ Supprimer
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Aucun résultat -->
       <div v-else-if="!isLoading" class="text-center py-8">
         <p class="text-gray-600">Aucun lien court trouvé.</p>
       </div>
 
-      <!-- Pagination -->
       <div v-if="totalPages > 1" class="mt-8 flex justify-center gap-2">
         <button 
           @click="changePage(currentPage - 1)"
@@ -260,7 +270,7 @@ onMounted(() => {
           :disabled="currentPage >= totalPages"
           class="px-3 py-2 bg-gray-200 text-gray-700 border-0 rounded cursor-pointer transition-colors hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
-          Suivant →
+          Suivant → 
         </button>
       </div>
     </div>
