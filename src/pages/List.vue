@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import ListUrl from '@/components/ListUrl.vue';
 
+<<<<<<< Updated upstream
 import { useApi } from '@/composables/api';
 
 const $api = useApi();
@@ -30,6 +31,8 @@ async function deleteShortLink(slugOrId) {
   }
 }
 
+=======
+>>>>>>> Stashed changes
 </script>
 
 <template>
