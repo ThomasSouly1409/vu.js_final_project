@@ -1,19 +1,43 @@
 <script setup>
 import { ref } from 'vue'
 import { useApi } from '@/composables/api'
+import Tags from './Tags.vue' // Ajustez le chemin selon votre structure
+import ColorHash from 'color-hash'
 import './../../index.css'
 
 const $api = useApi()
+const colorHash = new ColorHash()
 
 // État réactif
 const defaultUrlLength = ref(8)
 const form = ref({
   originalUrl: '',
   title: '',
-  urlLength: null
+  urlLength: null,
+  tags: []
 })
 const generatedLink = ref(null)
 const isLoading = ref(false)
+
+// Fonctions utilitaires pour les couleurs (pour l'affichage des résultats)
+const getTagColor = (tagName) => {
+  return colorHash.hex(tagName)
+}
+
+const getTextColor = (backgroundColor) => {
+  const hex = backgroundColor.replace('#', '')
+  const r = parseInt(hex.substr(0, 2), 16)
+  const g = parseInt(hex.substr(2, 2), 16)
+  const b = parseInt(hex.substr(4, 2), 16)
+  
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5 ? '#000000' : '#ffffff'
+}
+
+// Gestion des tags
+const handleTagsChange = (newTags) => {
+  form.value.tags = newTags
+}
 
 // Générer un lien court
 async function generateShortLink() {
@@ -22,16 +46,15 @@ async function generateShortLink() {
   try {
     isLoading.value = true
     
-    // Différents formats possibles selon l'API Shlink
     const payload = {
-      longUrl: form.value.originalUrl,  // Shlink utilise souvent "longUrl"
+      longUrl: form.value.originalUrl,
       ...(form.value.title && { title: form.value.title }),
-      ...(form.value.urlLength && { customSlugLength: form.value.urlLength || defaultUrlLength.value })
+      ...(form.value.urlLength && { customSlugLength: form.value.urlLength || defaultUrlLength.value }),
+      ...(form.value.tags.length > 0 && { tags: form.value.tags })
     }
 
     console.log('Payload envoyé:', payload)
 
-    // Appel API pour créer le lien court
     const newLink = await $api("/rest/v3/short-urls", {
       method: 'POST',
       body: payload
@@ -43,13 +66,13 @@ async function generateShortLink() {
   } catch (error) {
     console.error('Erreur:', error.message)
     
-    // Essayer un autre format si le premier échoue
     if (error.status === 400) {
       try {
         const alternativePayload = {
           url: form.value.originalUrl,
           ...(form.value.title && { title: form.value.title }),
-          ...(form.value.urlLength && { shortCodeLength: form.value.urlLength || defaultUrlLength.value })
+          ...(form.value.urlLength && { shortCodeLength: form.value.urlLength || defaultUrlLength.value }),
+          ...(form.value.tags.length > 0 && { tags: form.value.tags })
         }
         
         console.log('Tentative avec payload alternatif:', alternativePayload)
@@ -84,7 +107,8 @@ function resetForm() {
   form.value = {
     originalUrl: '',
     title: '',
-    urlLength: null
+    urlLength: null,
+    tags: []
   }
   generatedLink.value = null
 }
@@ -140,6 +164,13 @@ function resetForm() {
           <small class="text-gray-500 text-xs mt-1">Par défaut: {{ defaultUrlLength }} caractères (min: 4, max: 20)</small>
         </div>
 
+        <!-- Composant de gestion des tags -->
+        <Tags
+          v-model:selectedTags="form.tags"
+          :disabled="isLoading"
+          @tagsChanged="handleTagsChange"
+        />
+
         <!-- Bouton de génération -->
         <button 
           type="submit" 
@@ -166,17 +197,35 @@ function resetForm() {
             <strong>{{ generatedLink.title }}</strong>
           </div>
 
+          <!-- Tags du lien généré -->
+          <div v-if="form.tags.length > 0" class="flex flex-col gap-2">
+            <label class="text-sm font-medium text-gray-600">Tags :</label>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="tag in form.tags"
+                :key="`result-${tag}`"
+                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+                :style="{
+                  backgroundColor: getTagColor(tag),
+                  color: getTextColor(getTagColor(tag))
+                }"
+              >
+                {{ tag }}
+              </span>
+            </div>
+          </div>
+
           <!-- URL originale -->
           <div class="flex flex-col gap-2">
             <label class="text-sm font-medium text-gray-600">URL originale :</label>
             <div class="flex gap-2">
               <input 
-                :value="generatedLink.originalUrl || generatedLink.original_url" 
+                :value="generatedLink.originalUrl || generatedLink.original_url || form.originalUrl" 
                 readonly 
                 class="flex-1 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-700"
               />
               <button 
-                @click="copyToClipboard(generatedLink.originalUrl || generatedLink.original_url)"
+                @click="copyToClipboard(generatedLink.originalUrl || generatedLink.original_url || form.originalUrl)"
                 class="px-4 py-3 bg-blue-500 text-white border-0 rounded-lg cursor-pointer text-sm transition-colors min-w-12 hover:bg-blue-600"
                 title="Copier"
               >

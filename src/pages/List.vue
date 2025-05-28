@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import ListUrl from '@/components/ListUrl.vue';
-import NbVuPerUrl from '@/components/NbVuPerUrl.vue';
+
 import { useApi } from '@/composables/api';
 
 const $api = useApi();

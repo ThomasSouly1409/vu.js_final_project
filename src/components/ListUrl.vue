@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useApi } from '@/composables/api'
+import ModifyLink from './ModifyLink.vue'
 
 const $api = useApi()
 
@@ -227,6 +228,7 @@ onMounted(() => {
                 </span>
                 <span>🔗 {{ url.shortCode || url.short_code }}</span>
               </div>
+              <ModifyLink></ModifyLink>
               <div class="flex gap-2">
                 <a 
                   :href="url.shortUrl || url.short_url" 
