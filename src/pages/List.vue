@@ -29,6 +29,7 @@ async function deleteShortLink(slugOrId) {
     alert("Erreur lors de la suppression du lien.");
   }
 }
+
 </script>
 
 <template>
