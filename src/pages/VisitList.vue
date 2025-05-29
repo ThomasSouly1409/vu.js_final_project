@@ -1,8 +1,8 @@
 <script setup>
-import NbVuPerUrl from '@/components/NbVuPerUrl.vue';
+import Tags from '@/components/Tags.vue';
 </script>
 
 <template>
-    <h1>Liste des visites</h1>
-    <NbVuPerUrl></NbVuPerUrl>
+    <Tags></Tags>
+    
 </template>

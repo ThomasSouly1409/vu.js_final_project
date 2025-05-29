@@ -1,280 +1,292 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/api'
+import LinkCard from './LinkCard.vue'
 import ModifyLink from './ModifyLink.vue'
 
 const $api = useApi()
 
 // État réactif
 const urls = ref([])
-const urlStats = ref({})
 const isLoading = ref(false)
-const isLoadingStats = ref(false)
 const error = ref(null)
-const searchTerm = ref('')
-const currentPage = ref(1)
-const totalPages = ref(1)
-const itemsPerPage = ref(10)
+const success = ref(null)
+const editingShortCode = ref(null)
+const urlStats = ref({})
+const searchQuery = ref('')
+const selectedTags = ref([])
+const availableTags = ref([])
 
-// Charger les statistiques pour une URL spécifique
-async function loadUrlStats(shortCode) {
-  try {
-    const response = await $api(`/rest/v3/short-urls/${shortCode}/visits`)
-    return response.visits?.pagination?.totalItems || response.totalItems || 0
-  } catch (err) {
-    console.error(`Erreur lors du chargement des stats pour ${shortCode}:`, err)
-    return 0
+// Computed
+const filteredUrls = computed(() => {
+  let filtered = urls.value
+
+  // Filtrage par recherche
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(url => 
+      url.title?.toLowerCase().includes(query) ||
+      url.longUrl?.toLowerCase().includes(query) ||
+      url.shortCode?.toLowerCase().includes(query) ||
+      url.tags?.some(tag => tag.toLowerCase().includes(query))
+    )
   }
-}
 
-// Charger les statistiques pour toutes les URLs visibles
-async function loadAllUrlStats() {
-  if (urls.value.length === 0) return
-  
-  isLoadingStats.value = true
-  const statsPromises = urls.value.map(async (url) => {
-    const shortCode = url.shortCode || url.short_code
-    if (shortCode && !urlStats.value[shortCode]) {
-      const visits = await loadUrlStats(shortCode)
-      return { shortCode, visits }
-    }
-    return null
-  })
+  // Filtrage par tags
+  if (selectedTags.value.length > 0) {
+    filtered = filtered.filter(url => 
+      selectedTags.value.every(tag => url.tags?.includes(tag))
+    )
+  }
 
-  const results = await Promise.all(statsPromises)
-  results.forEach(result => {
-    if (result) {
-      urlStats.value[result.shortCode] = result.visits
+  return filtered
+})
+
+const allTags = computed(() => {
+  const tagSet = new Set()
+  urls.value.forEach(url => {
+    if (url.tags) {
+      url.tags.forEach(tag => tagSet.add(tag))
     }
   })
-  
-  isLoadingStats.value = false
-}
+  return Array.from(tagSet).sort()
+})
 
-// Charger la liste des URLs
+// Méthodes
 async function loadUrls() {
   try {
     isLoading.value = true
     error.value = null
-    
-    const params = new URLSearchParams({
-      page: currentPage.value.toString(),
-      itemsPerPage: itemsPerPage.value.toString(),
-      ...(searchTerm.value && { searchTerm: searchTerm.value })
-    })
 
-    const response = await $api(`/rest/v3/short-urls?${params}`)
+    const response = await $api('/rest/v3/short-urls')
+    urls.value = response.shortUrls?.data || response.data || response || []
     
-    if (response.shortUrls) {
-      urls.value = response.shortUrls.data || response.shortUrls
-      totalPages.value = Math.ceil((response.shortUrls.pagination?.totalItems || response.shortUrls.length) / itemsPerPage.value)
-    } else {
-      urls.value = response.data || response
-      totalPages.value = Math.ceil((response.pagination?.totalItems || response.length) / itemsPerPage.value)
-    }
-    
-    await loadAllUrlStats()
-    
+    // Charger les statistiques pour chaque URL
+    await loadAllStats()
+
   } catch (err) {
     console.error('Erreur lors du chargement des URLs:', err)
-    error.value = 'Impossible de charger la liste des URLs'
+    error.value = 'Impossible de charger la liste des liens'
   } finally {
     isLoading.value = false
   }
 }
 
-// Fonction pour supprimer un lien court
-async function deleteShortLink(shortCode) {
-  if (!shortCode) return
-  if (!confirm(`Voulez-vous vraiment supprimer le lien court "${shortCode}" ?`)) return
+async function loadAllStats() {
+  for (const url of urls.value) {
+    try {
+      const response = await $api(`/rest/v3/short-urls/${url.shortCode}/visits`)
+      urlStats.value[url.shortCode] = response.visits?.length || 0
+    } catch (err) {
+      console.error(`Erreur stats pour ${url.shortCode}:`, err)
+      urlStats.value[url.shortCode] = 0
+    }
+  }
+}
 
+async function loadAvailableTags() {
   try {
-    await $api(`/rest/v3/short-urls/${shortCode}`, { method: 'DELETE' })
-    // Retirer le lien supprimé de la liste locale
-    urls.value = urls.value.filter(url => (url.shortCode || url.short_code) !== shortCode)
-    // Optionnel : rafraîchir les stats
-    urlStats.value = {}
-    await loadAllUrlStats()
-    alert('Lien supprimé avec succès')
+    const response = await $api('/rest/v3/tags')
+    availableTags.value = response.tags?.data || response.data || response || []
   } catch (err) {
-    console.error('Erreur lors de la suppression du lien :', err)
-    alert('Erreur lors de la suppression du lien')
+    console.error('Erreur lors du chargement des tags:', err)
   }
 }
 
-// Obtenir le nombre de vues pour une URL
-function getVisitsCount(url) {
-  const shortCode = url.shortCode || url.short_code
-  return urlStats.value[shortCode] || 
-         url.visitsCount || 
-         url.visits_count || 
-         url.visitsSummary?.total || 
-         0
+function handleModify(shortCode) {
+  editingShortCode.value = shortCode
 }
 
-// Recherche avec délai
-let searchTimeout
-function handleSearch() {
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => {
-    currentPage.value = 1
-    loadUrls()
-  }, 500)
-}
+async function handleDelete(shortCode) {
+  try {
+    await $api(`/rest/v3/short-urls/${shortCode}`, {
+      method: 'DELETE'
+    })
+    
+    urls.value = urls.value.filter(url => url.shortCode !== shortCode)
+    delete urlStats.value[shortCode]
+    success.value = 'Lien supprimé avec succès!'
+    
+    setTimeout(() => {
+      success.value = null
+    }, 3000)
 
-// Changer de page
-function changePage(page) {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-    loadUrls()
+  } catch (err) {
+    console.error('Erreur lors de la suppression:', err)
+    error.value = 'Erreur lors de la suppression du lien'
   }
 }
 
-// Actualiser avec rechargement des stats
-async function refreshData() {
-  urlStats.value = {}
-  await loadUrls()
+function handleCopy(shortUrl) {
+  success.value = 'Lien copié dans le presse-papiers!'
+  setTimeout(() => {
+    success.value = null
+  }, 2000)
+}
+
+function handleUrlUpdated(updatedUrl) {
+  const index = urls.value.findIndex(url => url.shortCode === updatedUrl.shortCode)
+  if (index !== -1) {
+    urls.value[index] = updatedUrl
+  }
+  editingShortCode.value = null
+  success.value = 'Lien mis à jour avec succès!'
+  setTimeout(() => {
+    success.value = null
+  }, 3000)
+}
+
+function handleUrlDeleted(shortCode) {
+  urls.value = urls.value.filter(url => url.shortCode !== shortCode)
+  delete urlStats.value[shortCode]
+  editingShortCode.value = null
+  success.value = 'Lien supprimé avec succès!'
+  setTimeout(() => {
+    success.value = null
+  }, 3000)
+}
+
+function handleCloseEditor() {
+  editingShortCode.value = null
+}
+
+function toggleTagFilter(tag) {
+  const index = selectedTags.value.indexOf(tag)
+  if (index > -1) {
+    selectedTags.value.splice(index, 1)
+  } else {
+    selectedTags.value.push(tag)
+  }
+}
+
+function clearFilters() {
+  searchQuery.value = ''
+  selectedTags.value = []
 }
 
 onMounted(() => {
   loadUrls()
+  loadAvailableTags()
 })
 </script>
 
 <template>
   <div class="max-w-6xl mx-auto p-5">
-    <div class="bg-white rounded-xl shadow-lg p-8">
-      <div class="flex justify-between items-center mb-8">
-        <h2 class="text-2xl font-semibold text-gray-800">Liste des Liens Courts</h2>
-        <button 
-          @click="refreshData"
-          class="px-4 py-2 bg-blue-500 text-white border-0 rounded-lg cursor-pointer text-sm transition-colors hover:bg-blue-600"
-          :disabled="isLoading"
-        >
-          🔄 Actualiser
-        </button>
-      </div>
+    <!-- En-tête -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">Mes liens courts</h1>
+      <p class="text-gray-600">Gérez vos liens raccourcis, leurs tags et leurs statistiques</p>
+    </div>
 
-      <div class="mb-6">
-        <input
-          v-model="searchTerm"
-          @input="handleSearch"
-          type="text"
-          placeholder="Rechercher par titre ou URL..."
-          class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-colors focus:outline-none focus:border-blue-500"
+    <!-- Messages -->
+    <div v-if="error" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+      {{ error }}
+    </div>
+    
+    <div v-if="success" class="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+      {{ success }}
+    </div>
+
+    <!-- Éditeur de lien (modal) -->
+    <div v-if="editingShortCode" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <ModifyLink
+          :short-code="editingShortCode"
+          @url-updated="handleUrlUpdated"
+          @url-deleted="handleUrlDeleted"
+          @close="handleCloseEditor"
         />
       </div>
+    </div>
 
-      <div v-if="error" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-        {{ error }}
-      </div>
-
-      <div v-if="isLoading" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <p class="mt-2 text-gray-600">Chargement...</p>
-      </div>
-
-      <div v-if="isLoadingStats && !isLoading" class="mb-4 text-center">
-        <p class="text-sm text-blue-600">📊 Chargement des statistiques...</p>
-      </div>
-
-      <div v-else-if="urls.length > 0" class="space-y-4">
-        <div 
-          v-for="url in urls" 
-          :key="url.shortCode || url.short_code"
-          class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-        >
-          <div class="flex flex-col gap-3">
-            <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <h3 v-if="url.title" class="font-semibold text-gray-800 text-lg">{{ url.title }}</h3>
-                <p class="text-sm text-gray-500">
-                  Créé le {{ new Date(url.dateCreated || url.date_created).toLocaleDateString('fr-FR') }}
-                </p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">URL originale :</label>
-                <div class="flex">
-                  <input 
-                    :value="url.longUrl || url.original_url" 
-                    readonly 
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg bg-gray-50 text-sm text-gray-700"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label class="text-xs font-medium text-gray-600 block mb-1">Lien court :</label>
-                <div class="flex">
-                  <input 
-                    :value="url.shortUrl || url.short_url" 
-                    readonly 
-                    class="flex-1 px-3 py-2 border border-blue-500 rounded-l-lg bg-blue-50 text-sm font-semibold text-blue-600"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="flex justify-between items-center pt-2 border-t border-gray-100">
-              <div class="flex gap-4 text-sm text-gray-600">
-                <span class="flex items-center gap-1">
-                  👁️ 
-                  <span v-if="isLoadingStats" class="text-blue-500">...</span>
-                  <span v-else class="font-medium">{{ getVisitsCount(url) }}</span>
-                  vues
-                </span>
-                <span>🔗 {{ url.shortCode || url.short_code }}</span>
-              </div>
-              <ModifyLink></ModifyLink>
-              <div class="flex gap-2">
-                <a 
-                  :href="url.shortUrl || url.short_url" 
-                  target="_blank"
-                  class="px-3 py-1 bg-green-500 text-white border-0 rounded text-sm cursor-pointer transition-colors hover:bg-green-600 no-underline"
-                >
-                  🔗 Ouvrir
-                </a>
-                <button
-                  @click="deleteShortLink(url.shortCode || url.short_code)"
-                  class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                  title="Supprimer ce lien"
-                >
-                  🗑️ Supprimer
-                </button>
-              </div>
-            </div>
+    <!-- Filtres et recherche -->
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+      <div class="flex flex-col gap-4">
+        <!-- Barre de recherche -->
+        <div class="relative">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Rechercher par titre, URL, code court ou tag..."
+            class="w-full px-4 py-3 pl-10 border-2 border-gray-200 rounded-lg text-base transition-colors focus:outline-none focus:border-blue-500"
+          />
+          <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            🔍
           </div>
         </div>
-      </div>
 
-      <div v-else-if="!isLoading" class="text-center py-8">
-        <p class="text-gray-600">Aucun lien court trouvé.</p>
-      </div>
+        <!-- Filtres par tags -->
+        <div v-if="allTags.length > 0">
+          <div class="flex items-center justify-between mb-3">
+            <label class="text-sm font-medium text-gray-700">Filtrer par tags :</label>
+            <button
+              v-if="selectedTags.length > 0 || searchQuery"
+              @click="clearFilters"
+              class="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+            >
+              Effacer les filtres
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <TagBadge
+              v-for="tag in allTags"
+              :key="tag"
+              :tag="tag"
+              :clickable="true"
+              :class="{
+                'ring-2 ring-blue-500 ring-offset-1': selectedTags.includes(tag)
+              }"
+              @click="toggleTagFilter"
+            />
+          </div>
+        </div>
 
-      <div v-if="totalPages > 1" class="mt-8 flex justify-center gap-2">
-        <button 
-          @click="changePage(currentPage - 1)"
-          :disabled="currentPage <= 1"
-          class="px-3 py-2 bg-gray-200 text-gray-700 border-0 rounded cursor-pointer transition-colors hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          ← Précédent
-        </button>
-        
-        <span class="px-3 py-2 text-gray-700">
-          Page {{ currentPage }} sur {{ totalPages }}
-        </span>
-        
-        <button 
-          @click="changePage(currentPage + 1)"
-          :disabled="currentPage >= totalPages"
-          class="px-3 py-2 bg-gray-200 text-gray-700 border-0 rounded cursor-pointer transition-colors hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          Suivant → 
-        </button>
+        <!-- Statistiques -->
+        <div class="flex gap-6 text-sm text-gray-600 pt-2 border-t border-gray-100">
+          <span>📊 Total: {{ urls.length }} liens</span>
+          <span>🔍 Affichés: {{ filteredUrls.length }} liens</span>
+          <span v-if="selectedTags.length > 0">🏷️ Filtres actifs: {{ selectedTags.length }}</span>
+        </div>
       </div>
+    </div>
+
+    <!-- Liste des liens -->
+    <div v-if="isLoading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <p class="mt-4 text-gray-600">Chargement des liens...</p>
+    </div>
+
+    <div v-else-if="filteredUrls.length === 0" class="text-center py-12">
+      <div class="text-6xl mb-4">🔗</div>
+      <h3 class="text-xl font-semibold text-gray-800 mb-2">
+        {{ urls.length === 0 ? 'Aucun lien trouvé' : 'Aucun résultat' }}
+      </h3>
+      <p class="text-gray-600">
+        {{ urls.length === 0 
+          ? 'Commencez par créer votre premier lien court' 
+          : 'Essayez de modifier vos critères de recherche' 
+        }}
+      </p>
+      <button
+        v-if="searchQuery || selectedTags.length > 0"
+        @click="clearFilters"
+        class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      >
+        Effacer les filtres
+      </button>
+    </div>
+
+    <div v-else class="grid gap-4">
+      <LinkCard
+        v-for="url in filteredUrls"
+        :key="url.shortCode"
+        :url="url"
+        :visits-count="urlStats[url.shortCode] || 0"
+        :is-loading-stats="!(url.shortCode in urlStats)"
+        @modify="handleModify"
+        @delete="handleDelete"
+        @copy="handleCopy"
+      />
     </div>
   </div>
 </template>

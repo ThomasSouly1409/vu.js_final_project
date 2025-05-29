@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/api'
+import Tags from './Tags.vue'
 
 const $api = useApi()
 
@@ -12,7 +13,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['urlUpdated', 'urlDeleted'])
+const emit = defineEmits(['urlUpdated', 'urlDeleted', 'close'])
 
 // État réactif
 const originalData = ref(null)
@@ -22,14 +23,23 @@ const formData = ref({
   tags: []
 })
 
-const availableTags = ref([])
-const newTag = ref('')
+const availableTags = ref([
+  'Marketing',
+  'Social Media', 
+  'Blog',
+  'Documentation',
+  'E-commerce',
+  'Personnel',
+  'Professionnel',
+  'Temporaire',
+  'Important',
+  'Archive'
+])
+
 const isLoading = ref(false)
 const isLoadingTags = ref(false)
-const isDeleting = ref(false)
 const error = ref(null)
 const success = ref(null)
-const showDeleteConfirm = ref(false)
 
 // Validation
 const isValidUrl = computed(() => {
@@ -82,52 +92,28 @@ async function loadUrlInfo() {
   }
 }
 
-// Charger les tags disponibles
-async function loadTags() {
+// Charger les tags disponibles depuis l'API
+async function loadAvailableTags() {
   try {
     isLoadingTags.value = true
     const response = await $api('/rest/v3/tags')
-    availableTags.value = response.tags?.data || response.data || response || []
+    const apiTags = response.tags?.data || response.data || response || []
+    
+    // Fusionner avec les tags par défaut
+    const allTags = [...new Set([...availableTags.value, ...apiTags])]
+    availableTags.value = allTags
+    
   } catch (err) {
     console.error('Erreur lors du chargement des tags:', err)
+    // Garder les tags par défaut en cas d'erreur
   } finally {
     isLoadingTags.value = false
   }
 }
 
-// Ajouter un tag
-function addTag(tag) {
-  if (tag && !formData.value.tags.includes(tag)) {
-    formData.value.tags.push(tag)
-  }
-  newTag.value = ''
-}
-
-// Retirer un tag
-function removeTag(tag) {
-  const index = formData.value.tags.indexOf(tag)
-  if (index > -1) {
-    formData.value.tags.splice(index, 1)
-  }
-}
-
-// Générer une couleur pour un tag
-function getTagColor(tag) {
-  let hash = 0
-  for (let i = 0; i < tag.length; i++) {
-    hash = tag.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const hue = Math.abs(hash) % 360
-  return `hsl(${hue}, 70%, 85%)`
-}
-
-function getTagTextColor(tag) {
-  let hash = 0
-  for (let i = 0; i < tag.length; i++) {
-    hash = tag.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const hue = Math.abs(hash) % 360
-  return `hsl(${hue}, 70%, 25%)`
+// Gestion des tags
+const handleTagsChange = (newTags) => {
+  formData.value.tags = newTags
 }
 
 // Mettre à jour le lien court
@@ -168,7 +154,7 @@ async function updateShortUrl() {
 // Supprimer le lien court
 async function deleteShortUrl() {
   try {
-    isDeleting.value = true
+    isLoading.value = true
     error.value = null
 
     await $api(`/rest/v3/short-urls/${props.shortCode}`, {
@@ -176,14 +162,12 @@ async function deleteShortUrl() {
     })
 
     emit('urlDeleted', props.shortCode)
-    showDeleteConfirm.value = false
 
   } catch (err) {
     console.error('Erreur lors de la suppression:', err)
     error.value = err.message || 'Erreur lors de la suppression du lien'
-    showDeleteConfirm.value = false
   } finally {
-    isDeleting.value = false
+    isLoading.value = false
   }
 }
 
@@ -200,29 +184,38 @@ function cancelChanges() {
   success.value = null
 }
 
+// Fermer l'éditeur
+function handleClose() {
+  emit('close')
+}
+
+onMounted(() => {
+  loadUrlInfo()
+  loadAvailableTags()
+})
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto p-5">
-    <div class="p-8">
+  <div class="max-w-4xl mx-auto p-5">
+    <div class="bg-white rounded-xl shadow-lg p-8">
       <!-- En-tête -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
           <button
-            @click="$router?.back() || history.back()"
+            @click="handleClose"
             class="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             ← Retour
           </button>
-          <h2 class="text-1xl text-gray-800">
-            Modifier {{ props.shortCode }}
+          <h2 class="text-2xl font-semibold text-gray-800">
+            Modifier le lien {{ props.shortCode }}
           </h2>
         </div>
         
         <button
-          @click="showDeleteConfirm = true"
+          @click="deleteShortUrl"
           class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          :disabled="isDeleting"
+          :disabled="isLoading"
         >
           🗑️ Supprimer
         </button>
@@ -275,69 +268,13 @@ function cancelChanges() {
           />
         </div>
 
-        <!-- Tags -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Tags
-          </label>
-          
-          <!-- Tags sélectionnés -->
-          <div v-if="formData.tags.length > 0" class="mb-3 flex flex-wrap gap-2">
-            <span
-              v-for="tag in formData.tags"
-              :key="tag"
-              class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium cursor-pointer"
-              :style="{
-                backgroundColor: getTagColor(tag),
-                color: getTagTextColor(tag)
-              }"
-              @click="removeTag(tag)"
-            >
-              {{ tag }}
-              <button type="button" class="ml-2 text-current hover:text-red-600">×</button>
-            </span>
-          </div>
-
-          <!-- Ajouter un nouveau tag -->
-          <div class="flex gap-2 mb-3">
-            <input
-              v-model="newTag"
-              type="text"
-              placeholder="Nouveau tag"
-              class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              @keydown.enter.prevent="addTag(newTag)"
-            />
-            <button
-              type="button"
-              @click="addTag(newTag)"
-              class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
-              :disabled="!newTag.trim()"
-            >
-              Ajouter
-            </button>
-          </div>
-
-          <!-- Tags disponibles -->
-          <div v-if="availableTags.length > 0 && !isLoadingTags">
-            <p class="text-xs text-gray-600 mb-2">Tags existants :</p>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="tag in availableTags"
-                :key="tag"
-                type="button"
-                @click="addTag(tag)"
-                class="inline-flex items-center px-2 py-1 rounded text-xs border border-gray-300 hover:bg-gray-50 transition-colors"
-                :class="{
-                  'bg-gray-100 cursor-not-allowed': formData.tags.includes(tag),
-                  'hover:border-blue-500': !formData.tags.includes(tag)
-                }"
-                :disabled="formData.tags.includes(tag)"
-              >
-                {{ tag }}
-              </button>
-            </div>
-          </div>
-        </div>
+        <!-- Gestionnaire de Tags -->
+        <Tags
+          v-model:selected-tags="formData.tags"
+          :available-tags="availableTags"
+          :disabled="isLoading"
+          @tags-changed="handleTagsChange"
+        />
 
         <!-- Boutons -->
         <div class="flex gap-4 pt-4">
@@ -365,37 +302,6 @@ function cancelChanges() {
           ⚠️ Vous avez des modifications non sauvegardées
         </div>
       </form>
-
-      <!-- Modal de confirmation de suppression -->
-      <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 max-w-md mx-4">
-          <h3 class="text-lg font-semibold text-gray-800 mb-4">
-            Confirmer la suppression
-          </h3>
-          <p class="text-gray-600 mb-6">
-            Êtes-vous sûr de vouloir supprimer définitivement ce lien court ? 
-            Cette action est irréversible et toutes les statistiques associées seront perdues.
-          </p>
-          <div class="flex gap-4">
-            <button
-              @click="deleteShortUrl"
-              :disabled="isDeleting"
-              class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-red-300"
-            >
-              <span v-if="isDeleting">Suppression...</span>
-              <span v-else>Oui, supprimer</span>
-            </button>
-            <button
-              @click="showDeleteConfirm = false"
-              :disabled="isDeleting"
-              class="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
-    

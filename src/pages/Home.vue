@@ -1,5 +1,6 @@
 <script setup>
 import ShortLink from '@/components/ShortLink.vue'
+import Tags from '@/components/Tags.vue';
 import '../../index.css'
 </script>
 

@@ -1,8 +1,6 @@
 <script setup>
-import { ref, computed, defineEmits, defineProps } from 'vue'
-import ColorHash from 'color-hash'
-
-const colorHash = new ColorHash()
+import { ref, computed } from 'vue'
+import TagBadge from './TagBadge.vue'
 
 // Props
 const props = defineProps({
@@ -10,9 +8,32 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  availableTags: {
+    type: Array,
+    default: () => [
+      'Marketing',
+      'Social Media',
+      'Blog',
+      'Documentation',
+      'E-commerce',
+      'Personnel',
+      'Professionnel',
+      'Temporaire',
+      'Important',
+      'Archive'
+    ]
+  },
   disabled: {
     type: Boolean,
     default: false
+  },
+  allowCustomTags: {
+    type: Boolean,
+    default: true
+  },
+  title: {
+    type: String,
+    default: 'Tags'
   }
 })
 
@@ -20,40 +41,12 @@ const props = defineProps({
 const emit = defineEmits(['update:selectedTags', 'tagsChanged'])
 
 // État local
-const availableTags = ref([
-  'Marketing',
-  'Social Media',
-  'Blog',
-  'Documentation',
-  'E-commerce',
-  'Personnel',
-  'Professionnel',
-  'Temporaire',
-  'Important',
-  'Archive'
-])
-
 const newTagInput = ref('')
 const showNewTagInput = ref(false)
 
-// Fonctions utilitaires pour les couleurs
-const getTagColor = (tagName) => {
-  return colorHash.hex(tagName)
-}
-
-const getTextColor = (backgroundColor) => {
-  const hex = backgroundColor.replace('#', '')
-  const r = parseInt(hex.substr(0, 2), 16)
-  const g = parseInt(hex.substr(2, 2), 16)
-  const b = parseInt(hex.substr(4, 2), 16)
-  
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.5 ? '#000000' : '#ffffff'
-}
-
 // Computed
 const unselectedTags = computed(() => {
-  return availableTags.value.filter(tag => !props.selectedTags.includes(tag))
+  return props.availableTags.filter(tag => !props.selectedTags.includes(tag))
 })
 
 // Méthodes
@@ -73,8 +66,7 @@ const removeTag = (tagName) => {
 
 const addNewTag = () => {
   const tagName = newTagInput.value.trim()
-  if (tagName && !availableTags.value.includes(tagName) && !props.selectedTags.includes(tagName)) {
-    availableTags.value.push(tagName)
+  if (tagName && !props.selectedTags.includes(tagName)) {
     addTag(tagName)
     newTagInput.value = ''
     showNewTagInput.value = false
@@ -89,27 +81,19 @@ const cancelNewTag = () => {
 
 <template>
   <div class="flex flex-col">
-    <label class="mb-2 text-sm font-medium text-gray-700">Tags</label>
+    <label class="mb-2 text-sm font-medium text-gray-700">{{ title }}</label>
     
     <!-- Tags sélectionnés -->
     <div v-if="selectedTags.length > 0" class="mb-3">
       <p class="text-xs text-gray-600 mb-2">Tags sélectionnés :</p>
       <div class="flex flex-wrap gap-2">
-        <span
+        <TagBadge
           v-for="tag in selectedTags"
           :key="`selected-${tag}`"
-          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-all"
-          :class="disabled ? 'cursor-default' : 'cursor-pointer hover:opacity-80'"
-          :style="{
-            backgroundColor: getTagColor(tag),
-            color: getTextColor(getTagColor(tag))
-          }"
-          @click="!disabled && removeTag(tag)"
-          :title="disabled ? '' : 'Cliquer pour retirer'"
-        >
-          {{ tag }}
-          <span v-if="!disabled" class="ml-1 text-xs">×</span>
-        </span>
+          :tag="tag"
+          :removable="!disabled"
+          @remove="removeTag"
+        />
       </div>
     </div>
 
@@ -117,26 +101,18 @@ const cancelNewTag = () => {
     <div v-if="unselectedTags.length > 0 && !disabled" class="mb-3">
       <p class="text-xs text-gray-600 mb-2">Tags disponibles :</p>
       <div class="flex flex-wrap gap-2">
-        <span
+        <TagBadge
           v-for="tag in unselectedTags"
           :key="`available-${tag}`"
-          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-all hover:opacity-80 border border-gray-300"
-          :style="{
-            backgroundColor: getTagColor(tag) + '20',
-            color: getTagColor(tag),
-            borderColor: getTagColor(tag)
-          }"
-          @click="addTag(tag)"
-          title="Cliquer pour ajouter"
-        >
-          {{ tag }}
-          <span class="ml-1 text-xs">+</span>
-        </span>
+          :tag="tag"
+          clickable
+          @click="addTag"
+        />
       </div>
     </div>
 
     <!-- Ajouter un nouveau tag -->
-    <div v-if="!disabled" class="flex items-center gap-2">
+    <div v-if="!disabled && allowCustomTags" class="flex items-center gap-2">
       <button
         v-if="!showNewTagInput"
         type="button"
