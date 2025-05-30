@@ -5,9 +5,7 @@ import { useApi } from '@/composables/api';
 
 const $api = useApi();
 
-// Exemple de liste de liens à gérer, à remplacer par un fetch réel si besoin
 const shortLinks = ref([
-  // Remplace par tes vrais liens récupérés
   { slug: 'abc123', title: 'Lien 1', shortUrl: 'https://ex.com/abc123' },
   { slug: 'def456', title: 'Lien 2', shortUrl: 'https://ex.com/def456' }
 ]);
@@ -32,7 +30,6 @@ async function deleteShortLink(slugOrId) {
 
 <template>
   <div>
-    <h1>Liste lien + nombre de vu</h1>
     <ListUrl :links="shortLinks" @delete-link="deleteShortLink" />
 
   </div>

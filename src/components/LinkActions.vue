@@ -1,7 +1,10 @@
 <script setup>
 import { ref } from 'vue'
+import copy from './../assets/copy.svg'
+import deleted from './../assets/delete.svg'
+import internet from './../assets/internet.svg'
+import modify from './../assets/modify.svg'
 
-// Props
 const props = defineProps({
   shortUrl: {
     type: String,
@@ -33,14 +36,11 @@ const props = defineProps({
   }
 })
 
-// Events
 const emit = defineEmits(['modify', 'delete', 'copy'])
 
-// État local
 const showDeleteConfirm = ref(false)
 const isDeleting = ref(false)
 
-// Méthodes
 const handleModify = () => {
   emit('modify', props.shortCode)
 }
@@ -75,77 +75,67 @@ const cancelDelete = () => {
 
 <template>
   <div class="flex items-center gap-2">
-    <!-- Bouton Modifier -->
     <button
       v-if="showModify"
       @click="handleModify"
       :disabled="disabled"
-      class="px-3 py-1 bg-blue-500 text-white border-0 rounded text-sm cursor-pointer transition-colors hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-      title="Modifier ce lien"
-    >
-      ✏️ Modifier
+      class="px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white border border-cyan-400/30 rounded-lg text-xs font-[Orbitron] font-semibold tracking-wider cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-cyan-400/30 hover:border-cyan-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:border-gray-600"
+      title="Modifier ce lien">
+      <img class="w-[18px]" :src="modify" />
     </button>
-
-    <!-- Bouton Copier -->
     <button
       v-if="showCopy"
       @click="handleCopy"
       :disabled="disabled"
-      class="px-3 py-1 bg-gray-500 text-white border-0 rounded text-sm cursor-pointer transition-colors hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-      title="Copier le lien"
-    >
-      📋 Copier
+      class="px-3 py-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white border border-purple-400/30 rounded-lg text-xs font-[Orbitron] font-semibold tracking-wider cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-purple-400/30 hover:border-purple-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:border-gray-600"
+      title="Copier le lien">
+      <img class="w-[18px]" :src="copy" />
     </button>
-
-    <!-- Bouton Ouvrir -->
     <a
       v-if="showOpen"
       :href="shortUrl"
       target="_blank"
       rel="noopener noreferrer"
-      class="px-3 py-1 bg-green-500 text-white border-0 rounded text-sm cursor-pointer transition-colors hover:bg-green-600 no-underline"
-      :class="{ 'pointer-events-none bg-gray-300': disabled }"
-      title="Ouvrir le lien"
-    >
-      🔗 Ouvrir
+      class="px-3 py-2 bg-gradient-to-r from-black-600 to-gray-900 text-white border border-green-400/30 rounded-lg text-xs font-[Orbitron] font-semibold tracking-wider cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-green-400/30 hover:border-green-400 no-underline"
+      :class="{ 'pointer-events-none from-gray-600 to-gray-700 border-gray-600': disabled }"
+      title="Ouvrir le lien">
+      <img class="w-[18px]" :src="internet" />
     </a>
-
-    <!-- Bouton Supprimer -->
     <button
       v-if="showDelete"
       @click="confirmDelete"
       :disabled="disabled"
-      class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-      title="Supprimer ce lien"
-    >
-      🗑️ Supprimer
+      class="px-3 py-2 bg-gradient-to-r from-red-600 to-orange-500 text-white border border-red-400/30 rounded-lg text-xs font-[Orbitron] font-semibold tracking-wider cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-red-400/30 hover:border-red-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:border-gray-600"
+      title="Supprimer ce lien">
+      <img class="w-[18px]" :src="deleted" />
     </button>
-
-    <!-- Modal de confirmation de suppression -->
-    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg p-6 max-w-md mx-4">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-          Confirmer la suppression
-        </h3>
-        <p class="text-gray-600 mb-6">
-          Êtes-vous sûr de vouloir supprimer définitivement ce lien court ? 
-          Cette action est irréversible et toutes les statistiques associées seront perdues.
-        </p>
+    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div class="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl p-8 max-w-md mx-4 border-2 border-red-400/30 shadow-2xl shadow-red-400/20">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center">
+            <span class="text-2xl">⚠️</span>
+          </div>
+          <h3 class="text-xl font-[Orbitron] font-bold text-red-400 mb-2 tracking-wider">
+            ALERTE SUPPRESSION
+          </h3>
+          <p class="text-gray-300 font-[Orbitron] text-sm leading-relaxed">
+            Cette action est irréversible.<br>
+            Toutes les données associées seront perdues définitivement.
+          </p>
+        </div>  
         <div class="flex gap-4">
           <button
             @click="handleDelete"
             :disabled="isDeleting"
-            class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-red-300"
-          >
-            <span v-if="isDeleting">Suppression...</span>
-            <span v-else>Oui, supprimer</span>
+            class="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-orange-500 text-white rounded-lg font-[Orbitron] font-semibold tracking-wider hover:shadow-lg hover:shadow-red-400/30 transition-all duration-300 disabled:from-red-800 disabled:to-orange-800">
+            <span v-if="isDeleting">SUPPRESSION...</span>
+            <span v-else>CONFIRMER</span>
           </button>
           <button
             @click="cancelDelete"
             :disabled="isDeleting"
-            class="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-          >
-            Annuler
+            class="flex-1 px-4 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg font-[Orbitron] font-semibold tracking-wider hover:shadow-lg hover:shadow-gray-400/30 transition-all duration-300">
+            ANNULER
           </button>
         </div>
       </div>

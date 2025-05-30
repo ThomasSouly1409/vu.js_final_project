@@ -5,10 +5,7 @@ import '../../index.css'
 </script>
 
 <template>
-  <div>
-    <h1 class="text-2xl font-bold mb-4">Accueil</h1>
-    <p>Contenu de la page d'accueil</p>
+  <div class="">
     <ShortLink></ShortLink>
-    
   </div>
 </template>

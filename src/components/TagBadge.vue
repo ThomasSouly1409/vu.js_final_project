@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue'
 import ColorHash from 'color-hash'
+import cancel from './../assets/cancel.svg'
 
 const colorHash = new ColorHash()
 
-// Props
 const props = defineProps({
   tag: {
     type: String,
@@ -25,25 +25,25 @@ const props = defineProps({
   }
 })
 
-// Events
 const emit = defineEmits(['remove', 'click'])
 
-// Computed
-const tagColor = computed(() => colorHash.hex(props.tag))
+const tagColor = computed(() => {
+  const baseColor = colorHash.hex(props.tag)
+  const hex = baseColor.replace('#', '')
+  const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 50)
+  const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 50)
+  const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 50)
+  return `rgb(${r}, ${g}, ${b})`
+})
 
-const textColor = computed(() => {
-  const hex = tagColor.value.replace('#', '')
-  const r = parseInt(hex.substr(0, 2), 16)
-  const g = parseInt(hex.substr(2, 2), 16)
-  const b = parseInt(hex.substr(4, 2), 16)
-  
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.5 ? '#000000' : '#ffffff'
+const glowColor = computed(() => {
+  const baseColor = colorHash.hex(props.tag)
+  return baseColor
 })
 
 const sizeClasses = computed(() => {
   const sizes = {
-    xs: 'px-2 py-0.5 text-xs',
+    xs: 'px-2 py-1 text-xs',
     sm: 'px-3 py-1 text-xs',
     md: 'px-4 py-2 text-sm',
     lg: 'px-5 py-2 text-base'
@@ -51,7 +51,6 @@ const sizeClasses = computed(() => {
   return sizes[props.size]
 })
 
-// Methods
 const handleClick = () => {
   if (props.clickable) {
     emit('click', props.tag)
@@ -66,28 +65,27 @@ const handleRemove = (event) => {
 
 <template>
   <span
-    class="inline-flex items-center rounded-full font-medium transition-all"
+    class="inline-flex items-center rounded-full font-[Orbitron] font-semibold transition-all duration-300 border border-gray-600/50 backdrop-blur-sm"
     :class="[
       sizeClasses, 
-      clickable ? 'cursor-pointer hover:opacity-80' : '',
+      clickable ? 'cursor-pointer hover:border-cyan-400/50 hover:shadow-lg' : '',
       removable ? 'pr-1' : ''
     ]"
     :style="{
       backgroundColor: tagColor,
-      color: textColor
+      color: '#ffffff',
+      boxShadow: clickable ? `0 0 10px ${glowColor}40` : 'none'
     }"
     @click="handleClick"
-    :title="clickable ? 'Cliquer pour sélectionner' : ''"
-  >
-    {{ tag }}
+    :title="clickable ? 'Cliquer pour sélectionner' : ''">
+    <span class="tracking-wider">{{ tag.toUpperCase() }}</span>
     <button
       v-if="removable"
       type="button"
       @click="handleRemove"
-      class="ml-1 rounded-full hover:bg-black hover:bg-opacity-20 w-4 h-4 flex items-center justify-center text-xs transition-colors"
-      title="Retirer ce tag"
-    >
-      ×
+      class="ml-2 rounded-full hover:bg-red-500/30 w-5 h-5 flex items-center justify-center text-xs transition-all duration-300 font-bold border border-red-400/30 hover:border-red-400 hover:shadow-lg hover:shadow-red-400/30"
+      title="Retirer ce tag">
+      <img class="w-[18px]" :src="cancel" />
     </button>
   </span>
 </template>

@@ -6,14 +6,14 @@ import Header from './components/Header.vue';
 
 <template>
   <Header></Header>
-  <div class="flex h-screen">
+  <div class="flex h-[full] dark:bg-gray-900">
     
 
     <div class="w-[290px]">
       <Sidebar></Sidebar>
     </div>    
-    <div class=" w-full ml-[60px] mt-[20px]">
-      <div class=" p-6">
+    <div class=" w-full ml-[60px] mt-[20px] ">
+      <div class="p-6">
         <router-view />
       </div>
     </div>

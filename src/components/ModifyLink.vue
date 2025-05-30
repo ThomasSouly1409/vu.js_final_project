@@ -2,10 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/api'
 import Tags from './Tags.vue'
+import warning from './../assets/warning.svg'
+import deleted from './../assets/delete.svg'
+import valid from './../assets/valid.svg'
 
 const $api = useApi()
 
-// Props et émissions
 const props = defineProps({
   shortCode: {
     type: String,
@@ -15,7 +17,6 @@ const props = defineProps({
 
 const emit = defineEmits(['urlUpdated', 'urlDeleted', 'close'])
 
-// État réactif
 const originalData = ref(null)
 const formData = ref({
   longUrl: '',
@@ -41,7 +42,6 @@ const isLoadingTags = ref(false)
 const error = ref(null)
 const success = ref(null)
 
-// Validation
 const isValidUrl = computed(() => {
   if (!formData.value.longUrl) return false
   try {
@@ -64,7 +64,6 @@ const canSubmit = computed(() => {
   return isValidUrl.value && hasChanges.value && !isLoading.value
 })
 
-// Charger les informations de l'URL
 async function loadUrlInfo() {
   try {
     isLoading.value = true
@@ -92,31 +91,26 @@ async function loadUrlInfo() {
   }
 }
 
-// Charger les tags disponibles depuis l'API
 async function loadAvailableTags() {
   try {
     isLoadingTags.value = true
     const response = await $api('/rest/v3/tags')
     const apiTags = response.tags?.data || response.data || response || []
     
-    // Fusionner avec les tags par défaut
     const allTags = [...new Set([...availableTags.value, ...apiTags])]
     availableTags.value = allTags
     
   } catch (err) {
     console.error('Erreur lors du chargement des tags:', err)
-    // Garder les tags par défaut en cas d'erreur
   } finally {
     isLoadingTags.value = false
   }
 }
 
-// Gestion des tags
 const handleTagsChange = (newTags) => {
   formData.value.tags = newTags
 }
 
-// Mettre à jour le lien court
 async function updateShortUrl() {
   if (!canSubmit.value) return
 
@@ -151,7 +145,6 @@ async function updateShortUrl() {
   }
 }
 
-// Supprimer le lien court
 async function deleteShortUrl() {
   try {
     isLoading.value = true
@@ -171,7 +164,6 @@ async function deleteShortUrl() {
   }
 }
 
-// Annuler les modifications
 function cancelChanges() {
   if (originalData.value) {
     formData.value = {
@@ -184,7 +176,6 @@ function cancelChanges() {
   success.value = null
 }
 
-// Fermer l'éditeur
 function handleClose() {
   emit('close')
 }
@@ -196,110 +187,101 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto p-5">
-    <div class="bg-white rounded-xl shadow-lg p-8">
-      <!-- En-tête -->
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
+  <div class="max-w-4xl mx-auto p-8 font-[Orbitron]">
+    <div class="bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 border border-cyan-500 rounded-xl shadow-2xl p-8">
+      <div class="flex items-center justify-between mb-8 pb-4 border-b border-cyan-500/30">
+        <div class="flex items-center gap-6">
           <button
             @click="handleClose"
-            class="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-          >
-            ← Retour
+            class="px-4 py-3 bg-gradient-to-r from-gray-700 to-gray-800 text-cyan-300 border border-cyan-500/50 rounded-lg font-semibold uppercase tracking-wide transition-all duration-300 hover:bg-gradient-to-r hover:from-gray-600 hover:to-gray-700 hover:shadow-lg hover:shadow-cyan-500/20">
+            Retour
           </button>
-          <h2 class="text-2xl font-semibold text-gray-800">
-            Modifier le lien {{ props.shortCode }}
+          <h2 class="text-2xl font-semibold bg-gradient-to-r from-cyan-400 to-purple-600 bg-clip-text text-transparent uppercase tracking-wider">
+            Modifier {{ props.shortCode }}
           </h2>
-        </div>
-        
+        </div>  
         <button
           @click="deleteShortUrl"
-          class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          :disabled="isLoading"
-        >
-          🗑️ Supprimer
+          class="px-6 py-3 bg-gradient-to-r from-red-600 to-pink-600 text-white border border-red-500/50 rounded-lg font-semibold uppercase tracking-wide transition-all duration-300 hover:shadow-lg hover:shadow-red-500/30 hover:scale-105 disabled:opacity-50"
+          :disabled="isLoading">
+          <span class="flex items-center gap-2">
+            <img class="w-[18px]" :src="deleted" alt="">
+          </span>
         </button>
       </div>
-
-      <!-- Messages -->
-      <div v-if="error" class="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-        {{ error }}
+      <div v-if="error" class="mb-6 p-4 bg-red-900/50 border border-red-500 text-red-300 rounded-lg backdrop-blur-sm">
+        <img class="w-[18px]" :src="warning" /> {{ error }}
       </div>
       
-      <div v-if="success" class="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-        {{ success }}
+      <div v-if="success" class="mb-6 p-4 bg-green-900/50 border border-green-500 text-green-300 rounded-lg backdrop-blur-sm">
+        <img class="w-[18px]" :src="valid" /> {{ success }}
       </div>
-
-      <!-- État de chargement initial -->
-      <div v-if="isLoading && !originalData" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        <p class="mt-2 text-gray-600">Chargement...</p>
+      <div v-if="isLoading && !originalData" class="text-center py-12">
+        <div class="inline-block relative mb-4">
+          <div class="animate-spin rounded-full h-12 w-12 border-4 border-cyan-500/30 border-t-cyan-400"></div>
+          <div class="absolute inset-0 rounded-full border-4 border-purple-500/20 animate-ping"></div>
+        </div>
+        <p class="text-cyan-300 uppercase tracking-wide">Chargement...</p>
       </div>
-
-      <!-- Formulaire -->
-      <form v-else-if="originalData" @submit.prevent="updateShortUrl" class="space-y-6">
-        <!-- URL longue -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            URL longue <span class="text-red-500">*</span>
+      <form v-else-if="originalData" @submit.prevent="updateShortUrl" class="space-y-8">
+        <div class="space-y-3">
+          <label class="block text-sm font-medium text-cyan-300 uppercase tracking-wide">
+             URL initial *
           </label>
           <input
             v-model="formData.longUrl"
             type="url"
-            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-colors focus:outline-none focus:border-blue-500"
-            :class="{ 'border-red-300': formData.longUrl && !isValidUrl }"
-            required
-          />
-          <p v-if="formData.longUrl && !isValidUrl" class="mt-1 text-sm text-red-600">
-            Veuillez entrer une URL valide
+            class="w-full px-6 py-4 bg-gray-900/70 border-2 border-cyan-500/50 rounded-lg text-cyan-100 text-base font-[Orbitron] placeholder-cyan-500/70 transition-all duration-300 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20"
+            :class="{ 'border-red-500 focus:border-red-400': formData.longUrl && !isValidUrl }"
+            placeholder="https://reseau.neuronal/destination"
+            required />
+          <p v-if="formData.longUrl && !isValidUrl" class="text-sm text-red-400 uppercase tracking-wide">
+            <img class="w-[18px]" :src="warning" />
+              Addresse invalide
           </p>
         </div>
-
-        <!-- Titre -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
-            Titre (optionnel)
+        <div class="space-y-3">
+          <label class="block text-sm font-medium text-cyan-300 uppercase tracking-wide">
+            Identifiant
           </label>
           <input
             v-model="formData.title"
             type="text"
-            placeholder="Titre descriptif du lien"
-            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-base transition-colors focus:outline-none focus:border-blue-500"
+            placeholder="Description du lien neuronal"
+            class="w-full px-6 py-4 bg-gray-900/70 border-2 border-cyan-500/50 rounded-lg text-cyan-100 text-base font-[Orbitron] placeholder-cyan-500/70 transition-all duration-300 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20" />
+        </div>
+        <div class="space-y-3">
+          <Tags
+            v-model:selected-tags="formData.tags"
+            :available-tags="availableTags"
+            :disabled="isLoading"
+            title="Tags neuronaux"
+            @tags-changed="handleTagsChange"
           />
         </div>
-
-        <!-- Gestionnaire de Tags -->
-        <Tags
-          v-model:selected-tags="formData.tags"
-          :available-tags="availableTags"
-          :disabled="isLoading"
-          @tags-changed="handleTagsChange"
-        />
-
-        <!-- Boutons -->
-        <div class="flex gap-4 pt-4">
+        <div class="flex gap-6 pt-6 border-t border-cyan-500/30">
           <button
             type="submit"
             :disabled="!canSubmit"
-            class="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg font-medium transition-colors hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            <span v-if="isLoading">Mise à jour...</span>
-            <span v-else>💾 Sauvegarder les modifications</span>
+            class="flex-1 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white border border-cyan-400/50 rounded-lg font-semibold text-lg uppercase tracking-wide transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/30 hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50">
+            <span v-if="isLoading" class="flex items-center justify-center gap-2">
+              <div class="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+              Mise à jour de la matrice...
+            </span>
+            <span v-else class="flex items-center justify-center gap-2">
+              Sauvegarder
+            </span>
           </button>
-          
           <button
             type="button"
             @click="cancelChanges"
             :disabled="!hasChanges"
-            class="px-6 py-3 bg-gray-500 text-white rounded-lg font-medium transition-colors hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-          >
-            Annuler
+            class="px-8 py-4 bg-gradient-to-r from-gray-700 to-gray-800 text-cyan-300 border border-gray-600 rounded-lg font-semibold text-lg uppercase tracking-wide transition-all duration-300 hover:bg-gradient-to-r hover:from-gray-600 hover:to-gray-700 hover:shadow-lg hover:shadow-gray-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+            Réinitialiser
           </button>
         </div>
-
-        <!-- Indicateur de modifications -->
-        <div v-if="hasChanges" class="text-sm text-orange-600 text-center">
-          ⚠️ Vous avez des modifications non sauvegardées
+        <div v-if="hasChanges" class="text-center text-orange-400 text-sm uppercase tracking-wide pt-4">
+          <img class="w-[18px]" :src="warning" /> Modifications neuronales non sauvegardées
         </div>
       </form>
     </div>
