@@ -5,6 +5,16 @@ import cancel from './../assets/cancel.svg'
 
 const colorHash = new ColorHash()
 
+const sizeClasses = computed(() => {
+  const sizes = {
+    xs: 'px-2 py-1 text-xs',
+    sm: 'px-3 py-1 text-xs',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-5 py-2 text-base'
+  }
+  return sizes[props.size]
+})
+
 const props = defineProps({
   tag: {
     type: String,
@@ -20,7 +30,7 @@ const props = defineProps({
   },
   size: {
     type: String,
-    default: 'sm', // 'xs', 'sm', 'md', 'lg'
+    default: 'sm', 
     validator: (value) => ['xs', 'sm', 'md', 'lg'].includes(value)
   }
 })
@@ -30,26 +40,13 @@ const emit = defineEmits(['remove', 'click'])
 const tagColor = computed(() => {
   const baseColor = colorHash.hex(props.tag)
   const hex = baseColor.replace('#', '')
-  const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 50)
-  const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 50)
-  const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 50)
+  const r = Math.max(0, parseInt(hex.slice(0, 2), 16) - 50)
+  const g = Math.max(0, parseInt(hex.slice(2, 4), 16) - 50)
+  const b = Math.max(0, parseInt(hex.slice(4, 6), 16) - 50)
   return `rgb(${r}, ${g}, ${b})`
 })
 
-const glowColor = computed(() => {
-  const baseColor = colorHash.hex(props.tag)
-  return baseColor
-})
 
-const sizeClasses = computed(() => {
-  const sizes = {
-    xs: 'px-2 py-1 text-xs',
-    sm: 'px-3 py-1 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-5 py-2 text-base'
-  }
-  return sizes[props.size]
-})
 
 const handleClick = () => {
   if (props.clickable) {

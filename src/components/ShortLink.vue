@@ -26,7 +26,6 @@ const form = ref({
 const generatedLink = ref(null)
 const isLoading = ref(false)
 
-// Fonctions utilitaires pour les couleurs
 const getTagColor = (tagName) => {
   return colorHash.hex(tagName)
 }
@@ -41,12 +40,10 @@ const getTextColor = (backgroundColor) => {
   return luminance > 0.5 ? '#000000' : '#ffffff'
 }
 
-// Gestion des tags
 const handleTagsChange = (newTags) => {
   form.value.tags = newTags
 }
 
-// Générer un lien court
 async function generateShortLink() {
   if (!form.value.originalUrl) return
   try {

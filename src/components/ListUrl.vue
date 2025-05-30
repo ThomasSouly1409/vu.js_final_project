@@ -8,6 +8,7 @@ import refresh from './../assets/refresh.svg'
 import active from './../assets/active.svg'
 import valid from './../assets/valid.svg'
 import warning from './../assets/warning.svg'
+import tag from './../assets/tag.svg'
 
 const $api = useApi()
 
@@ -253,10 +254,7 @@ onMounted(() => {
             v-model="searchQuery"
             type="text"
             placeholder=">>> Rechercher les données neuronales..."
-            class="w-full px-6 py-4 pl-12 bg-gray-900/70 border-2 border-cyan-500/50 rounded-lg text-cyan-100 text-base font-[Orbitron] placeholder-cyan-500/70 transition-all duration-300 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20"/>
-          <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-400 text-lg">
-            ⚡
-          </div>
+            class="w-full px-6 py-4 bg-gray-900/70 border-2 border-cyan-500/50 rounded-lg text-cyan-100 text-base font-[Orbitron] placeholder-cyan-500/70 transition-all duration-300 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20"/>
         </div>
         <div v-if="allTags.length > 0">
           <div class="flex items-center justify-between mb-4">
@@ -283,14 +281,14 @@ onMounted(() => {
         <div class="flex gap-8 text-sm text-cyan-300 pt-4 border-t border-cyan-500/30">
           <span class="flex items-center gap-2">
             <img class="w-[18px]" :src="total" />
-            <span class="uppercase tracking-wide">Total: {{ urls.length }} Links</span>
+            <span class="uppercase tracking-wide">Total: {{ urls.length }} Liens</span>
           </span>
           <span class="flex items-center gap-2">
             <img class="w-[18px]" :src="active" />
-            <span class="uppercase tracking-wide">Actifs: {{ filteredUrls.length }} Links</span>
+            <span class="uppercase tracking-wide">Actifs: {{ filteredUrls.length }} Liens</span>
           </span>
           <span v-if="selectedTags.length > 0" class="flex items-center gap-2">
-            <span class="text-purple-400">🏷️</span>
+            <img class="w-[18px]" :src="tag" />
             <span class="uppercase tracking-wide">Filtres: {{ selectedTags.length }}</span>
           </span>
         </div>
@@ -311,7 +309,7 @@ onMounted(() => {
       </h3>
       <p class="text-cyan-400 text-lg mb-8">
         {{ urls.length === 0 
-          ? 'Initialize your first quantum link' 
+          ? 'Initialiser votre lien neuronal' 
           : 'Modifier vos paramètres' 
         }}
       </p>
